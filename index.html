@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mind the Gap: Mesh-Guided Repair of Broken Vessels</title>
+<meta name="description" content="ShapeMI 2026 (MICCAI workshop). A mesh-guided post-processing framework that repairs broken nnU-Net vessel segmentations while preserving Dice.">
+<meta property="og:title" content="Mind the Gap: Mesh-Guided Repair of Broken Vessels">
+<meta property="og:description" content="Per-case deformable-mesh fitting used as a geometric scaffold for conservative reconnection of fragmented vessel masks. ShapeMI 2026, MICCAI.">
+<meta property="og:image" content="figures/fig1_broken_vessels.png">
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1d1f24; --muted: #5b6270; --line: #e4e7ec;
+    --accent: #0b6e99; --accent-soft: #e8f3f8; --raw: #d95f2b; --repaired: #1a7fb5;
+    --card: #f7f8fa; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12141a; --fg: #e8eaf0; --muted: #a0a7b4; --line: #2a2f3a;
+      --accent: #5db3dd; --accent-soft: #17303d; --card: #1a1e27;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12141a; --fg: #e8eaf0; --muted: #a0a7b4; --line: #2a2f3a;
+    --accent: #5db3dd; --accent-soft: #17303d; --card: #1a1e27;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 48px 16px 80px; }
+  header { text-align: center; margin-bottom: 40px; }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); line-height: 1.15; margin: 0 0 12px; letter-spacing: -0.01em; }
+  h1 .sub { display: block; font-weight: 400; color: var(--muted); font-size: 0.55em; margin-top: 8px; }
+  .authors { font-size: 1.05rem; margin: 8px 0 4px; }
+  .authors sup { color: var(--muted); }
+  .affil { color: var(--muted); font-size: 0.95rem; margin: 0; }
+  .venue { margin: 14px 0 0; font-weight: 600; color: var(--accent); }
+  .links { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 22px 0 0; }
+  .links a { display: inline-block; padding: 9px 16px; border-radius: 999px; border: 1px solid var(--line);
+             background: var(--card); color: var(--fg); text-decoration: none; font-weight: 600; font-size: 0.95rem; }
+  .links a:hover { border-color: var(--accent); color: var(--accent); }
+  h2 { font-size: 1.45rem; margin: 48px 0 14px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  p { margin: 0 0 14px; }
+  figure { margin: 22px 0; }
+  figure img { width: 100%; height: auto; display: block; border-radius: 8px; border: 1px solid var(--line); background: #fff; }
+  figcaption { color: var(--muted); font-size: 0.92rem; margin-top: 10px; line-height: 1.5; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 26px 0 10px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+  .kpi .name { font-weight: 700; margin-bottom: 4px; }
+  .kpi .n { color: var(--muted); font-size: 0.85rem; font-weight: 400; }
+  .kpi .val { font-size: 1.7rem; font-weight: 700; letter-spacing: -0.01em; }
+  .kpi .val .raw { color: var(--raw); } .kpi .val .rep { color: var(--repaired); }
+  .kpi .val .arrow { color: var(--muted); font-weight: 400; padding: 0 6px; }
+  .kpi .metric { color: var(--muted); font-size: 0.85rem; }
+  .callout { background: var(--accent-soft); border-left: 4px solid var(--accent); padding: 14px 18px; border-radius: 8px; margin: 18px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.95rem; margin: 16px 0; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+  th { font-weight: 700; color: var(--muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td b { color: var(--repaired); }
+  .table-wrap { overflow-x: auto; }
+  pre { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto;
+        font-family: var(--mono); font-size: 0.85rem; line-height: 1.5; }
+  code { font-family: var(--mono); font-size: 0.9em; }
+  ul { padding-left: 22px; } li { margin-bottom: 6px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 700px) { .grid2 { grid-template-columns: 1fr; } }
+  footer { margin-top: 56px; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--line); padding-top: 18px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>Mind the Gap: Mesh-Guided Repair of Broken Vessels
+    <span class="sub">Connectivity is restored while voxel accuracy is untouched</span></h1>
+  <p class="authors">Gniewosz Drwiega<sup>1</sup> &nbsp;·&nbsp; Wojciech Szymanski<sup>1,2</sup> &nbsp;·&nbsp; Marek Wodzinski<sup>1,2</sup></p>
+  <p class="affil"><sup>1</sup> Sano Centre for Computational Personalised Medicine, Krakow, Poland &nbsp;&nbsp; <sup>2</sup> AGH University of Krakow, Poland</p>
+  <p class="venue">ShapeMI 2026 · Shape in Medical Imaging workshop at MICCAI 2026 · Strasbourg, 27 September 2026</p>
+  <nav class="links">
+    <a href="https://openreview.net/forum?id=BVB2SExfid">Paper (OpenReview)</a>
+    <a href="https://github.com/SanoScience/mind-the-gap-vessel-repair">Code</a>
+    <a href="#results">Results</a>
+    <a href="#citation">BibTeX</a>
+  </nav>
+</header>
+
+<figure>
+  <img src="figures/fig1_broken_vessels.png" alt="Reference vessel structures (top) and broken nnU-Net predictions (bottom) for the aorta, Circle of Willis and pulmonary arteries, with missing connections highlighted.">
+  <figcaption><b>The problem.</b> Top: reference vessels. Bottom: nnU-Net predictions with the missing local connections highlighted in magenta. A handful of voxels splits an otherwise accurate mask into several components, while Dice barely moves.</figcaption>
+</figure>
+
+<div class="kpis">
+  <div class="kpi"><div class="name">Aorta <span class="n">(n = 145)</span></div>
+    <div class="val"><span class="raw">0.596</span><span class="arrow">→</span><span class="rep">0.992</span></div>
+    <div class="metric">ccDice, raw → repaired</div></div>
+  <div class="kpi"><div class="name">TopCoW <span class="n">(n = 125)</span></div>
+    <div class="val"><span class="raw">0.722</span><span class="arrow">→</span><span class="rep">0.835</span></div>
+    <div class="metric">ccDice, raw → repaired</div></div>
+  <div class="kpi"><div class="name">PARSE <span class="n">(n = 100)</span></div>
+    <div class="val"><span class="raw">0.028</span><span class="arrow">→</span><span class="rep">0.862</span></div>
+    <div class="metric">ccDice, raw → repaired</div></div>
+</div>
+<p class="callout">Across three vascular anatomies, Dice changes by at most 0.003 while connected-component Dice and the number of components move to near their ideal values. The fitted mesh is <b>never voxelised as the output</b>; it only proposes and validates thin bridges between disconnected components.</p>
+
+<h2 id="abstract">Abstract</h2>
+<p>Vessel segmentation is commonly optimized as voxel-wise classification, but small local errors can strongly disrupt vascular connectivity while having little effect on overlap scores. This is particularly problematic for downstream analyses that rely on centerlines, branches, connected components, or graph structure. We propose a mesh-guided post-processing framework for repairing broken vessel segmentations produced by nnU-Net. For each predicted binary mask, a deformable template mesh is fitted to the mask surface in physical space and used as a case-specific geometric scaffold. The fitted mesh is not voxelized as the final segmentation; instead, it guides conservative reconnection of disconnected components by proposing or validating thin bridge candidates under foreground-growth constraints. We evaluated this approach in three vascular anatomies using AortaSeg24 and SEGA for the aorta, TopCoW for the Circle of Willis, and PARSE for the pulmonary arteries. Performance is measured using Dice, connected-component Dice (ccDice), and the Betti-0 number. Across these datasets, repair substantially improved connectivity while preserving overlap: Dice remained nearly unchanged, whereas ccDice increased from 0.596 to 0.992 for aorta, from 0.722 to 0.835 for TopCoW, and from 0.028 to 0.862 for PARSE. The FOMAML meta-initialization further accelerated the fitting per case, supporting practical mesh-based repair of the vascular topology. These results suggest that explicit mesh representations can provide a useful geometric prior for correcting topological failures in otherwise accurate voxel segmentations.</p>
+
+<h2 id="method">Method</h2>
+<figure>
+  <img src="figures/fig2_pipeline.png" alt="Pipeline: nnU-Net produces a broken mask; its surface becomes the Chamfer target for a four-stage GCN mesh decoder that deforms an anatomy-specific template; the fitted mesh guides mesh-constrained mask repair.">
+  <figcaption><b>Pipeline.</b> A CT volume is segmented by nnU-Net (CNN branch). The surface of the predicted mask becomes the target for per-case mesh fitting: a template mesh passes through a four-stage graph-convolutional decoder that predicts bounded vertex offsets at each stage (GCN branch). The overfitted mesh then guides mesh-constrained repair of the original mask.</figcaption>
+</figure>
+<div class="grid2">
+  <div>
+    <p><b>1. Per-case mesh fitting.</b> The mask surface is extracted with marching cubes and mapped to physical coordinates, so spacing, origin and direction are preserved. An anatomy-specific template (cylinder for the aorta, torus-like for the Circle of Willis, sphere for the pulmonary arteries) is deformed by a four-stage graph decoder whose parameters are optimised for that one case under a Chamfer loss with edge-length, Laplacian, normal-consistency and face-area regularisation. The mesh with the best Chamfer score is kept.</p>
+    <p><b>2. Conservative repair.</b> Two strategies produce candidate bridges: <i>mesh-graph path repair</i> anchors disconnected components to nearby mesh vertices and takes the shortest path on the mesh graph; <i>endpoint repair with mesh validation</i> proposes short local bridges between component boundaries and keeps only those supported by nearby mesh vertices or face centroids. Every candidate is rasterised as a thin tube and accepted only if it merges the components while staying below a per-bridge foreground-growth limit.</p>
+  </div>
+  <div>
+    <p><b>3. Filtering and cleanup.</b> Optional component-distance filtering removes far false-positive islands before fitting, and a mesh-supported cleanup removes small components left unsupported by the fitted mesh after repair.</p>
+    <p><b>4. FOMAML meta-initialisation.</b> Each training case is a fitting task: the mesh model adapts to support surface points for a few inner steps and the shared initialisation is updated from the query loss. At inference the learned initialisation is a warm start, so a case converges in a few hundred instead of several thousand steps. In the aortic setting, FOMAML-initialised fitting plus repair takes about 30 s per case, against 44 s for the nnU-Net inference it post-processes.</p>
+  </div>
+</div>
+
+<h2 id="results">Results</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Dataset</th><th>Mask</th><th class="num">Dice ↑</th><th class="num">ccDice ↑</th><th class="num">β<sub>0</sub> ↓</th><th class="num">False branch ↓</th></tr></thead>
+  <tbody>
+    <tr><td rowspan="3">Aorta (n = 145)</td><td>Raw nnU-Net</td><td class="num">0.934 ± 0.007</td><td class="num">0.596 ± 0.045</td><td class="num">3.35 ± 0.43</td><td class="num">0.056 ± 0.009</td></tr>
+    <tr><td>Filtered</td><td class="num">0.935 ± 0.007</td><td class="num">0.695 ± 0.043</td><td class="num">2.47 ± 0.30</td><td class="num">0.044 ± 0.008</td></tr>
+    <tr><td>Repaired</td><td class="num">0.934 ± 0.007</td><td class="num"><b>0.992 ± 0.009</b></td><td class="num"><b>1.01 ± 0.02</b></td><td class="num">0.055 ± 0.009</td></tr>
+    <tr><td rowspan="3">TopCoW (n = 125)</td><td>Raw nnU-Net</td><td class="num">0.870 ± 0.010</td><td class="num">0.722 ± 0.043</td><td class="num">2.58 ± 0.20</td><td class="num">0.040 ± 0.006</td></tr>
+    <tr><td>Filtered</td><td class="num">0.870 ± 0.010</td><td class="num">0.723 ± 0.043</td><td class="num">2.58 ± 0.20</td><td class="num">0.040 ± 0.006</td></tr>
+    <tr><td>Repaired</td><td class="num">0.867 ± 0.010</td><td class="num"><b>0.835 ± 0.034</b></td><td class="num"><b>1.02 ± 0.02</b></td><td class="num">0.063 ± 0.007</td></tr>
+    <tr><td rowspan="3">PARSE (n = 100)</td><td>Raw nnU-Net</td><td class="num">0.877 ± 0.007</td><td class="num">0.028 ± 0.002</td><td class="num">87.46 ± 9.00</td><td class="num">0.130 ± 0.020</td></tr>
+    <tr><td>Filtered</td><td class="num">0.877 ± 0.007</td><td class="num">0.028 ± 0.002</td><td class="num">86.56 ± 8.97</td><td class="num">0.129 ± 0.020</td></tr>
+    <tr><td>Repaired</td><td class="num">0.876 ± 0.007</td><td class="num"><b>0.862 ± 0.041</b></td><td class="num"><b>1.56 ± 0.21</b></td><td class="num">0.132 ± 0.020</td></tr>
+  </tbody>
+</table>
+</div>
+<p style="color:var(--muted);font-size:0.92rem">Mean ± 95% confidence interval, five-fold out-of-fold protocol: every repaired case was segmented by an nnU-Net model that never saw it in training. β<sub>0</sub> is the number of connected components (ideal: 1 for the aorta and pulmonary tree; TopCoW ground truth averages 1.45 because some Circle of Willis variants are anatomically incomplete).</p>
+
+<figure>
+  <img src="figures/fig4_quantitative.png" alt="Per-case Dice, ccDice and connected-component counts for raw, artifact-cleaned and repaired masks across the three datasets.">
+  <figcaption><b>Per-case view.</b> Dice (top) is unchanged by filtering and repair, ccDice (middle) jumps, and component counts (bottom) collapse to the ground-truth level. Points are individual cases; markers show the mean ± SEM.</figcaption>
+</figure>
+
+<figure>
+  <img src="figures/fig3_qualitative.png" alt="Qualitative examples for aorta, Circle of Willis and pulmonary artery: broken mask, overfitted mesh, repaired mask and ground truth.">
+  <figcaption><b>Qualitative examples.</b> Rows: broken nnU-Net mask, overfitted mesh, repaired mask, ground truth. Blue arrows mark the breaks repaired by the method. The mask is left untouched away from the bridges.</figcaption>
+</figure>
+
+<figure>
+  <img src="figures/fig5_fomaml_convergence.png" alt="Best-so-far Chamfer distance versus fitting step for FOMAML and standard initialisation on the three datasets.">
+  <figcaption><b>FOMAML meta-initialisation.</b> Best-so-far Chamfer loss during per-case fitting. The meta-learned start reaches the standard initialisation's 500-step error in 178 (aorta), 198 (TopCoW) and 280 (PARSE) steps.</figcaption>
+</figure>
+
+<h2 id="limits">Limitations and outlook</h2>
+<ul>
+  <li>A false-positive component that survives filtering can support an anatomically implausible bridge; on TopCoW the false-branch fraction rose from 0.040 to 0.063.</li>
+  <li>The repair stage uses hard binary masks only. Image intensities or nnU-Net probability maps are not yet used to validate bridges.</li>
+  <li>Templates and repair thresholds are dataset-specific and may need tuning for new vascular territories.</li>
+  <li>Next steps: learned bridge scoring, anatomical constraints for highly variable structures, and hemodynamic experiments quantifying the downstream effect of small topological corrections.</li>
+</ul>
+
+<h2 id="citation">Citation</h2>
+<pre><code>@inproceedings{drwiega2026mindthegap,
+  title     = {Mind the Gap: Mesh-Guided Repair of Broken Vessels},
+  author    = {Drwiega, Gniewosz and Szymanski, Wojciech and Wodzinski, Marek},
+  booktitle = {Shape in Medical Imaging (ShapeMI 2026), MICCAI 2026 Workshop},
+  year      = {2026}
+}</code></pre>
+
+<footer>
+  <p>This work was supported by the National Science Centre, Poland, under grant "MultiGeoMed" No. 2024/55/D/ST6/02081. We gratefully acknowledge the Polish high-performance computing infrastructure PLGrid (HPC Center: ACK Cyfronet AGH) for computational resources within grant No. PLG/2025/018770.</p>
+  <p>Contact: <a href="mailto:g.drwiega@sanoscience.org">g.drwiega@sanoscience.org</a></p>
+</footer>
+</main>
+</body>
+</html>
