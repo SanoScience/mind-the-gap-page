@@ -36,6 +36,11 @@
   .authors sup { color: var(--muted); }
   .affil { color: var(--muted); font-size: 0.95rem; margin: 0; }
   .venue { margin: 14px 0 0; font-weight: 600; color: var(--accent); }
+  .logos { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; align-items: center; margin: 18px 0 0; }
+  .logos a { display: block; line-height: 0; border-radius: 8px; box-shadow: 0 0 0 1px var(--line); }
+  .logos a:hover { box-shadow: 0 0 0 1px var(--accent); }
+  .logos img { height: 52px; width: auto; display: block; }
+  @media (max-width: 480px) { .logos img { height: 40px; } }
   .links { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 22px 0 0; }
   .links a { display: inline-block; padding: 9px 16px; border-radius: 999px; border: 1px solid var(--line);
              background: var(--card); color: var(--fg); text-decoration: none; font-weight: 600; font-size: 0.95rem; }
@@ -77,6 +82,10 @@
     <span class="sub">Connectivity is restored while voxel accuracy is untouched</span></h1>
   <p class="authors">Gniewosz Drwiega<sup>1</sup> &nbsp;·&nbsp; Wojciech Szymanski<sup>1,2</sup> &nbsp;·&nbsp; Marek Wodzinski<sup>1,2</sup></p>
   <p class="affil"><sup>1</sup> Sano Centre for Computational Personalised Medicine, Krakow, Poland &nbsp;&nbsp; <sup>2</sup> AGH University of Krakow, Poland</p>
+  <div class="logos">
+    <a href="https://sano.science" title="Sano Centre for Computational Personalised Medicine"><img src="logos/sano.png" alt="Sano Centre for Computational Personalised Medicine"></a>
+    <a href="https://mwodzinski.edu.pl/multigeomed/" title="MultiGeoMed: Multimodal Geometric Deep Learning"><img src="logos/multigeomed.png" alt="MultiGeoMed project logo"></a>
+  </div>
   <p class="venue">ShapeMI 2026 · Shape in Medical Imaging workshop at MICCAI 2026 · Strasbourg, 27 September 2026</p>
   <nav class="links">
     <a href="https://openreview.net/forum?id=BVB2SExfid">Paper (OpenReview)</a>
