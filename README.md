@@ -5,8 +5,8 @@ Static project website for the ShapeMI 2026 (MICCAI 2026 workshop) paper
 Wojciech Szymanski and Marek Wodzinski (Sano Centre for Computational
 Personalised Medicine, AGH University of Krakow).
 
-- Website: https://sanoscience.github.io/mind-the-gap-vessel-repair-page/
-- Code: https://github.com/SanoScience/mind-the-gap-vessel-repair
+- Website: https://sanoscience.github.io/mind-the-gap-page/
+- Code: https://github.com/SanoScience/mind-the-gap
 - Paper: https://openreview.net/forum?id=BVB2SExfid
 
 The site is a single `index.html` with figures under `figures/`, served by
